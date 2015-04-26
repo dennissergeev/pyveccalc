@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tools for manipulating data for use with `pyveccalc.standard.Vectorwind`
+Tools for manipulating data for use with `pyveccalc.standard.Wind*`
 """
 
 import numpy as np
@@ -26,7 +26,7 @@ def __reshape(d):
 
 def prep_data(data, dimorder):
     """
-    Prepare data for input to `~pyveccalc.standard.VectorWind`
+    Prepare data for input to `~pyveccalc.standard.Wind*`
     """
     # Returns the prepared data and some data info to help data recovery.
     pdata, intorder = __order_dims(data, dimorder)
@@ -39,7 +39,7 @@ def prep_data(data, dimorder):
 def recover_data(pdata, info):
     """
     Recover the shape and dimension order of an array output from
-    `~pyveccalc.standard.VectorWind`
+    `~pyveccalc.standard.Wind*`
     """
     # Convert to intermediate shape (full dimensionality, windspharm order).
     data = pdata.reshape(info['intermediate_shape'])
