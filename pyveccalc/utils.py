@@ -43,3 +43,42 @@ def lat2dist(lat, R=r_earth):
     dist = R*np.radians(lat)
     return dist
 
+def deg2name(num_deg, nbins=16):
+    assert type(num_deg) != np.str, 'Input cannot be of string type'
+    assert nbins==16 or nbins==8 or nbins==4, 'Number of bins must be 4, 8 or 16'
+    db = 16/nbins
+    deg_lev = np.linspace(0,360,nbins+1)
+    deg_bound = deg_lev[1::] - deg_lev[1]/2.
+    compass = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][::db]
+
+    if not hasattr(num_deg,'__iter__'):
+        for j in xrange(len(deg_bound)):
+            if deg_bound[j-1] < num_deg <= deg_bound[j]:
+                out_deg = compass[j]
+            if deg_bound[-1] < num_deg or num_deg <= deg_bound[0]:
+                out_deg = compass[0]
+                
+    elif type(num_deg) is list:
+        out_deg = []
+        for i in num_deg:
+            for j in xrange(len(deg_bound)-1):
+                if deg_bound[j] < i <= deg_bound[j+1]:
+                    out_deg.append(compass[j+1])
+            if deg_bound[-1] < i or i <= deg_bound[0]:
+                out_deg.append(compass[0])
+            
+    elif type(num_deg) is np.ndarray:
+        out_deg = []
+        for i in num_deg.flatten():
+            for j in xrange(len(deg_bound)-1):
+                if deg_bound[j] < i <= deg_bound[j+1]:
+                    out_deg.append(compass[j+1])
+            if deg_bound[-1] < i or i <= deg_bound[0]:
+                out_deg.append(compass[0])
+        out_deg = np.array(out_deg)
+        out_deg = out_deg.reshape(num_deg.shape)
+            
+    else:
+        raise TypeError('Handling input of type '+type(num_deg).__name__+' is not implemented yet')
+
+    return out_deg

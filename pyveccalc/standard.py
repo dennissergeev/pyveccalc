@@ -11,42 +11,60 @@ grids = ('descartes','lonlat') #,'gaussian')
 class WindHorizontal(object):
 
     def __init__(self, u, v, x=1., y=1., hgridtype=grids[0]):
-        """Initialize a VectorWind instance
+        """
+        Initialize a WindHorizontal instance
         """
         if u.shape != v.shape:
             raise ValueError('u and v must be the same shape')
-        if len(u.shape) not in (2, 3, 4):
-            raise ValueError('u and v must be rank 2, 3 or 4 arrays')
+        if len(u.shape) not in (2, 3):
+            raise ValueError('u and v must be rank 2, or 3 arrays')
         self.u = u.copy()
         self.v = v.copy()
+
+        if len(u.shape) > 2:
+            self.nd = u.shape[2]
+        else:
+            self.nd = 0
 
         self.hgridtype = hgridtype.lower()
         if self.hgridtype not in grids:
             raise ValueError('invalid grid type: {0:s}'.format(repr(hgridtype)))
         if self.hgridtype == 'lonlat':
             if type(x) is np.ndarray and type(y) is np.ndarray:
-               if u.shape[:2] != x.shape or u.shape[:2] != y.shape:
-                  if len(x.shape) == len(y.shape) == 1:
-                      self.x, self.y = np.meshgrid(x, y)
-                      self.x, self.y = self.x.T, self.y.T 
-                      if u.shape[:2] != self.x.shape or u.shape[:2] != self.y.shape:
-                          raise ValueError('Incorrect shape of coordinate arrays')
-                  else:
-                      raise ValueError('Incorrect shape of coordinate arrays')
-               else:
-                   # Converting input lon-lat arrays to distance arrays
-                   self.x = utils.lon2dist(self.x, self.y)
-                   self.y = utils.lon2dist(self.y)
+                if u.shape[:2] != x.shape or u.shape[:2] != y.shape:
+                    if len(x.shape) == len(y.shape) == 1:
+                        self.x, self.y = np.meshgrid(x, y)
+                        self.x, self.y = self.x.T, self.y.T 
+                        self.__lonlat2dist()
+                        if u.shape[:2] != self.x.shape or u.shape[:2] != self.y.shape:
+                            raise ValueError('Incorrect shape of coordinate arrays')
+                    else:
+                        raise ValueError('Incorrect shape of coordinate arrays')
+                else:
+                    self.__lonlat2dist()
         else:                
             self.x = x
             self.y = y
+
+    def __lonlat2dist(self):
+        """
+        Converting input lon-lat arrays to distance arrays
+        """
+        self.x = utils.lon2dist(self.x, self.y)
+        self.y = utils.lat2dist(self.y)
+
         
     def vort_z(self):
         """
-        Relative vorticity
+        Relative vorticity (z-component of curl)
         """
-        res = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
-        return res       
+        if self.nd > 0:
+            f = np.zeros(self.u.shape, dtype=self.u.dtype)
+            for i in xrange(self.nd):
+                f[:,:,i] = dfdx(self.v[:,:,i], self.x, 0) - dfdx(self.u[:,:,i], self.y, 1)
+        else:
+            f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
+        return f
         
 
 def dfdx(f,x,axis=0):
