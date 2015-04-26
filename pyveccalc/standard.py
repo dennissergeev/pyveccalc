@@ -5,38 +5,37 @@ Wind vector calculations in finite differences
 #from __future__ import absolute_import
 import numpy as np
 
-class VectorWind(object):
+class WindHorizontal(object):
 
-    def __init__(self, u, v, gridtype='regular'):
+    def __init__(self, u, v, x=None, y=None, hgridtype='regular'):
         """Initialize a VectorWind instance
         """
-        # For both the input components check if there are missing values by
-        # attempting to fill missing values with NaN and detect them. If the
-        # inputs are not masked arrays then take copies and check for NaN.
-        try:
-            self.u = u.filled(fill_value=np.nan)
-        except AttributeError:
-            self.u = u.copy()
-        try:
-            self.v = v.filled(fill_value=np.nan)
-        except AttributeError:
-            self.v = v.copy()
-        if np.isnan(self.u).any() or np.isnan(self.v).any():
-            raise ValueError('u and v cannot contain missing values')
-        # Make sure the shapes of the two components match.
+        self.hgridtype = hgridtype.lower()
         if u.shape != v.shape:
             raise ValueError('u and v must be the same shape')
-        if len(u.shape) not in (2, 3):
-            raise ValueError('u and v must be rank 2 or 3 arrays')
+        if len(u.shape) not in (2, 3, 4):
+            raise ValueError('u and v must be rank 2, 3 or 4 arrays')
+        if self.hgridtype not in ('regular', 'gaussian'):
+            raise ValueError('invalid grid type: {0:s}'.format(repr(hgridtype)))
+            
         nlat = u.shape[0]
         nlon = u.shape[1]
-        try:
-            # Create a Spharmt object to do the computations.
-            self.gridtype = gridtype.lower()
-            self.s = Spharmt(nlon, nlat, gridtype=self.gridtype)
-        except ValueError:
-            if self.gridtype not in ('regular', 'gaussian'):
-                err = 'invalid grid type: {0:s}'.format(repr(gridtype))
-            else:
-                err = 'invalid input dimensions'
-            raise ValueError(err)
+
+    def vort_z(self):
+        """
+        Relative vorticity
+        """
+        res = dfdx(self.v, self.x, 1) - dfdx(self.u, self.y, 0)
+        return res       
+        
+
+def dfdx(f,x,axis=0):
+    """
+    Generic derivative
+    """
+    df = np.gradient(f)[axis]
+    if type(x) is np.ndarray:
+        dx = np.gradient(x)[axis]
+    else:
+        dx = x
+    return df/dx
