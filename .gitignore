@@ -13,6 +13,7 @@
 *.EGG-INFO
 build
 dist
+.ipynb_checkpoints
 *.pyc
 *.pyo
 *.tmp*
