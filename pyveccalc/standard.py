@@ -7,7 +7,7 @@ import numpy as np
 
 class WindHorizontal(object):
 
-    def __init__(self, u, v, x=None, y=None, hgridtype='regular'):
+    def __init__(self, u, v, x=1., y=1., hgridtype='regular'):
         """Initialize a VectorWind instance
         """
         self.hgridtype = hgridtype.lower()
@@ -17,15 +17,20 @@ class WindHorizontal(object):
             raise ValueError('u and v must be rank 2, 3 or 4 arrays')
         if self.hgridtype not in ('regular', 'gaussian'):
             raise ValueError('invalid grid type: {0:s}'.format(repr(hgridtype)))
+        
+        self.u = u.copy()
+        self.v = v.copy()
+        self.x = x
+        self.y = y
             
-        nlat = u.shape[0]
-        nlon = u.shape[1]
+        nlon = u.shape[0]
+        nlat = u.shape[1]
 
     def vort_z(self):
         """
         Relative vorticity
         """
-        res = dfdx(self.v, self.x, 1) - dfdx(self.u, self.y, 0)
+        res = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
         return res       
         
 

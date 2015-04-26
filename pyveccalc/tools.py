@@ -7,16 +7,16 @@ import numpy as np
 
 def __order_dims(d, inorder):
     if 'x' not in inorder or 'y' not in inorder:
-        raise ValueError('a latitude-longitude (y-x) grid is required')
+        raise ValueError('a longitude-latitude (x-y) grid is required')
     lonpos = inorder.lower().find('x')
     latpos = inorder.lower().find('y')
-    d = np.rollaxis(d, lonpos)
-    if latpos < lonpos:
-        latpos += 1
     d = np.rollaxis(d, latpos)
+    if lonpos < latpos:
+        lonpos += 1
+    d = np.rollaxis(d, lonpos)
     outorder = inorder.replace('x', '')
     outorder = outorder.replace('y', '')
-    outorder = 'yx' + outorder
+    outorder = 'xy' + outorder
     return d, outorder
 
 
