@@ -41,7 +41,12 @@ class WindHorizontal(object):
                     else:
                         raise ValueError('Incorrect shape of coordinate arrays')
                 else:
+                    self.x = x
+                    self.y = y
                     self.__lonlat2dist()
+            else:
+                self.x = x
+                self.y = y
         else:                
             self.x = x
             self.y = y
@@ -53,7 +58,16 @@ class WindHorizontal(object):
         self.x = utils.lon2dist(self.x, self.y)
         self.y = utils.lat2dist(self.y)
 
+    def winddir_meteo(self, outfmt='numeric', nbins=16):
+        """
+        Get horizontal wind direction in meteorological convention
         
+        """
+        f = 180.+180./np.pi*np.arctan2(self.u, self.v)
+        if outfmt == 'name':
+            f = utils.deg2name(f, nbins)
+        return f 
+
     def vort_z(self):
         """
         Relative vorticity (z-component of curl)
