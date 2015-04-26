@@ -58,9 +58,15 @@ class WindHorizontal(object):
         self.x = utils.lon2dist(self.x, self.y)
         self.y = utils.lat2dist(self.y)
 
+    def magnitude(self):
+        """
+        Calculate wind speed (magnitude of wind vector)
+        """
+        return np.sqrt(self.u**2 + self.v**2)
+
     def winddir_meteo(self, outfmt='numeric', nbins=16):
         """
-        Get horizontal wind direction in meteorological convention
+        Calculate wind direction according to meteorological convention
         
         """
         f = 180.+180./np.pi*np.arctan2(self.u, self.v)
