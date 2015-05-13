@@ -30,7 +30,11 @@ def prep_data(data, dimorder):
     """
     # Returns the prepared data and some data info to help data recovery.
     pdata, intorder = __order_dims(data, dimorder)
-    pdata, intshape = __reshape(pdata)
+    if len(pdata.shape) > 2:
+        pdata, intshape = __reshape(pdata)
+    else:
+        # Do not add an extra dimension if array is 2D (e.g. lat/lon)
+        intshape = pdata.shape
     info = dict(intermediate_shape=intshape,
                 intermediate_order=intorder,
                 original_order=dimorder)
