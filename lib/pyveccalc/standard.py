@@ -97,3 +97,74 @@ def dfdx(f,x,axis=0):
     else:
         dx = x
     return df/dx
+
+
+class ScalarHorizontal(object):
+
+    def __init__(self, s, x=1., y=1., hgridtype=grids[0]):
+        """
+        Initialize a ScalarHorizontal instance
+        """
+        if len(s.shape) not in (2, 3):
+            raise ValueError('Scalar s must be rank 2, or 3 arrays')
+        self.s = s.copy()
+
+        if len(s.shape) > 2:
+            self.nd = s.shape[2]
+        else:
+            self.nd = 0
+
+        self.hgridtype = hgridtype.lower()
+        if self.hgridtype not in grids:
+            raise ValueError('invalid grid type: {0:s}'.format(repr(hgridtype)))
+        if self.hgridtype == 'lonlat':
+            if type(x) is np.ndarray and type(y) is np.ndarray:
+                if s.shape[:2] != x.shape or s.shape[:2] != y.shape:
+                    if len(x.shape) == len(y.shape) == 1:
+                        self.x, self.y = np.meshgrid(x, y)
+                        self.x, self.y = self.x.T, self.y.T 
+                        self.__lonlat2dist()
+                        if s.shape[:2] != self.x.shape or s.shape[:2] != self.y.shape:
+                            raise ValueError('Incorrect shape of coordinate arrays')
+                    else:
+                        raise ValueError('Incorrect shape of coordinate arrays')
+                else:
+                    self.x = x
+                    self.y = y
+                    self.__lonlat2dist()
+            else:
+                self.x = x
+                self.y = y
+        else:                
+            self.x = x
+            self.y = y
+
+    def __lonlat2dist(self):
+        """
+        Converting input lon-lat arrays to distance arrays
+        """
+        self.x = utils.lon2dist(self.x, self.y)
+        self.y = utils.lat2dist(self.y)
+
+    def gradient(self):
+        """
+        Calculate horizontal components of gradient
+        """
+        if self.nd > 0:
+            fx = np.zeros(self.s.shape, dtype=self.s.dtype)
+            fy = np.zeros(self.s.shape, dtype=self.s.dtype)
+            for i in xrange(self.nd):
+                fx[:,:,i] = dfdx(self.s[:,:,i], self.x, 0) 
+                fy[:,:,i] = dfdx(self.s[:,:,i], self.y, 1)
+        else:
+            fx = dfdx(self.s, self.x, 0)
+            fy = dfdx(self.s, self.y, 1)
+        return fx, fy
+
+    def gradient_mag(self):
+        """
+        Calculate magnitude of horizontal gradient
+        """
+        fx, fy = self.gradient()
+        f = np.sqrt(fx**2 + fy**2)
+        return f
