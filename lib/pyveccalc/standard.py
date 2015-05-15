@@ -78,12 +78,13 @@ class WindHorizontal(object):
         """
         Relative vorticity (z-component of curl)
         """
-        if self.nd > 0:
-            f = np.zeros(self.u.shape, dtype=self.u.dtype)
-            for i in xrange(self.nd):
-                f[:,:,i] = dfdx(self.v[:,:,i], self.x, 0) - dfdx(self.u[:,:,i], self.y, 1)
-        else:
-            f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
+        f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
+       # if self.nd > 0:
+       #     f = np.zeros(self.u.shape, dtype=self.u.dtype)
+       #     for i in xrange(self.nd):
+       #         f[:,:,i] = dfdx(self.v[:,:,i], self.x, 0) - dfdx(self.u[:,:,i], self.y, 1)
+       # else:
+       #     f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
         return f
         
 
@@ -94,6 +95,8 @@ def dfdx(f,x,axis=0):
     df = np.gradient(f)[axis]
     if type(x) is np.ndarray:
         dx = np.gradient(x)[axis]
+        if len(df.shape) == 3:
+           dx = dx.reshape(dx.shape[:2] + (np.prod(dx.shape[2:]),)) 
     else:
         dx = x
     return df/dx
@@ -150,15 +153,17 @@ class ScalarHorizontal(object):
         """
         Calculate horizontal components of gradient
         """
-        if self.nd > 0:
-            fx = np.zeros(self.s.shape, dtype=self.s.dtype)
-            fy = np.zeros(self.s.shape, dtype=self.s.dtype)
-            for i in xrange(self.nd):
-                fx[:,:,i] = dfdx(self.s[:,:,i], self.x, 0) 
-                fy[:,:,i] = dfdx(self.s[:,:,i], self.y, 1)
-        else:
-            fx = dfdx(self.s, self.x, 0)
-            fy = dfdx(self.s, self.y, 1)
+        fx = dfdx(self.s, self.x, 0)
+        fy = dfdx(self.s, self.y, 1)
+#        if self.nd > 0:
+#            fx = np.zeros(self.s.shape, dtype=self.s.dtype)
+#            fy = np.zeros(self.s.shape, dtype=self.s.dtype)
+#            for i in xrange(self.nd):
+#                fx[:,:,i] = dfdx(self.s[:,:,i], self.x, 0) 
+#                fy[:,:,i] = dfdx(self.s[:,:,i], self.y, 1)
+#        else:
+#            fx = dfdx(self.s, self.x, 0)
+#            fy = dfdx(self.s, self.y, 1)
         return fx, fy
 
     def gradient_mag(self):
