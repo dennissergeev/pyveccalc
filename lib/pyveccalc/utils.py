@@ -12,6 +12,10 @@ day_s    = 86400.         # Day length                              [s]
 omg      = 2.*np.pi/day_s # Earth angular velocity                  [s^-1]
 r_earth  = 6.371e6        # Earth's radius                          [m]
 
+def calc_fcor(deg_lat):
+    """Coriolis parameter for a given latitude in degrees"""
+    return 2.*omg*np.sin(np.radians(deg_lat))
+
 def lon2dist(lon, lat, R=r_earth):
     """
     Convert a longitude array to an array of distances (e.g. to use with numpy.gradient)
