@@ -77,6 +77,8 @@ class Wind3D(object):
     def vort_z(self):
         """
         Relative vorticity (z-component of curl)
+
+        $\frac{\partial \zeta}{\partial t}$
         """
         f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
         return f
@@ -84,11 +86,18 @@ class Wind3D(object):
     def hdiv(self):
         """
         Horizontal divergence
+
+        $\nabla_p\cdot\vec v$
         """
         f = dfdx(self.u, self.x, 0) + dfdx(self.v, self.y, 1)
         return f
 
     def vort_tend_hadv(self):
+        """
+        Horizontal advection of relative vorticity
+
+        $\vec v\cdot \nabla_p \zeta$
+        """
         self.__assert_vort()
         f = self.u*dfdx(self.vo, self.x, 0) + \
             self.v*dfdx(self.vo, self.y, 1)
@@ -96,11 +105,21 @@ class Wind3D(object):
         return f
 
     def vort_tend_vadv(self):
+        """
+        Vertical advection of relative vorticity
+
+        $\omega \frac{\partial \zeta}{\partial p}$
+        """
         self.__assert_vort()
         f = - self.w*dfdx(self.vo, self.z, 2)
         return f
 
     def planet_vort_adv(self):
+        """
+        Planetary vorticity advection
+
+        $\beta v$
+        """
         fcor = utils.calc_fcor(self.lats)
         beta = dfdx(fcor,self.y,1)
         beta = beta.repeat(self.v.shape[-1]).reshape(self.v.shape)
@@ -108,6 +127,11 @@ class Wind3D(object):
         return f
 
     def vort_tend_stretch(self):
+        """
+        Stretching term
+
+        $\nabla_p\cdot\vec v (\zeta+f)$
+        """
         self.__assert_vort()
         div = self.hdiv()
         fcor = utils.calc_fcor(self.lats)
@@ -116,6 +140,11 @@ class Wind3D(object):
         return f
 
     def vort_tend_twist(self):
+        """
+        Tilting/twisting term
+
+        $\vec k \cdot \nabla\omega\times\frac{\partial\vec v}{\partial p}$
+        """
         dwdx = dfdx(self.w, self.x, 0)
         dwdy = dfdx(self.w, self.y, 1)
         dudp = dfdx(self.u, self.z, 2)
