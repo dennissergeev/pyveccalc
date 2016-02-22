@@ -2,9 +2,9 @@
 """
 Wind vector calculations in finite differences
 """
-#from __future__ import absolute_import
 import numpy as np
-import utils
+
+from . import utils
 
 grids = ('cartesian','lonlat') #,'gaussian')
 
@@ -35,7 +35,7 @@ class Wind3D(object):
                 if u.shape[:2] != x.shape or u.shape[:2] != y.shape:
                     if len(x.shape) == len(y.shape) == 1:
                         self.x, self.y = np.meshgrid(x, y)
-                        self.x, self.y = self.x.T, self.y.T 
+                        self.x, self.y = self.x.T, self.y.T
                         self.__lonlat2dist()
                         if u.shape[:2] != self.x.shape or u.shape[:2] != self.y.shape:
                             raise ValueError('Incorrect shape of coordinate arrays')
@@ -48,7 +48,7 @@ class Wind3D(object):
             else:
                 self.x = x
                 self.y = y
-        else:                
+        else:
             self.x = x
             self.y = y
 
@@ -92,7 +92,7 @@ class Wind3D(object):
         self.__assert_vort()
         f = self.u*dfdx(self.vo, self.x, 0) + \
             self.v*dfdx(self.vo, self.y, 1)
-        f = -f 
+        f = -f
         return f
 
     def vort_tend_vadv(self):
@@ -120,7 +120,7 @@ class Wind3D(object):
         dwdy = dfdx(self.w, self.y, 1)
         dudp = dfdx(self.u, self.z, 2)
         dvdp = dfdx(self.v, self.z, 2)
-        f = - (dwdx*dvdp - dwdy*dudp) 
+        f = - (dwdx*dvdp - dwdy*dudp)
         return f
 
     def vort_tend_rhs(self):
@@ -131,9 +131,9 @@ class Wind3D(object):
         planet_vort_adv = self.planet_vort_adv()
         stretch = self.vort_tend_stretch()
         twist = self.vort_tend_twist()
-        
+
         return hadv, vadv, planet_vort_adv, stretch, twist
-        
+
 
 
 class WindHorizontal(object):
@@ -162,7 +162,7 @@ class WindHorizontal(object):
                 if u.shape[:2] != x.shape or u.shape[:2] != y.shape:
                     if len(x.shape) == len(y.shape) == 1:
                         self.x, self.y = np.meshgrid(x, y)
-                        self.x, self.y = self.x.T, self.y.T 
+                        self.x, self.y = self.x.T, self.y.T
                         self.__lonlat2dist()
                         if u.shape[:2] != self.x.shape or u.shape[:2] != self.y.shape:
                             raise ValueError('Incorrect shape of coordinate arrays')
@@ -175,7 +175,7 @@ class WindHorizontal(object):
             else:
                 self.x = x
                 self.y = y
-        else:                
+        else:
             self.x = x
             self.y = y
 
@@ -195,12 +195,11 @@ class WindHorizontal(object):
     def winddir_meteo(self, outfmt='numeric', nbins=16):
         """
         Calculate wind direction according to meteorological convention
-        
         """
         f = 180.+180./np.pi*np.arctan2(self.u, self.v)
         if outfmt == 'name':
             f = utils.deg2name(f, nbins)
-        return f 
+        return f
 
     def vort_z(self):
         """
@@ -209,21 +208,21 @@ class WindHorizontal(object):
         f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
        # if self.nd > 0:
        #     f = np.zeros(self.u.shape, dtype=self.u.dtype)
-       #     for i in xrange(self.nd):
+       #     for i in range(self.nd):
        #         f[:,:,i] = dfdx(self.v[:,:,i], self.x, 0) - dfdx(self.u[:,:,i], self.y, 1)
        # else:
        #     f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
         return f
-        
+
 
 def dfdx(f,x,axis=0):
     """
     Generic derivative
     """
     df = np.gradient(f)[axis]
-    if type(x) is np.ndarray:
+    if isinstance(x, np.ndarray):
         #if len(df.shape) == 3: CHECK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        #   dx = dx.reshape(dx.shape[:2] + (np.prod(dx.shape[2:]),)) 
+        #   dx = dx.reshape(dx.shape[:2] + (np.prod(dx.shape[2:]),))
         if x.shape == df.shape:
             dx = np.gradient(x)[axis]
         elif x.shape[-1] == df.shape[-1]:
@@ -257,7 +256,7 @@ class ScalarHorizontal(object):
                 if s.shape[:2] != x.shape or s.shape[:2] != y.shape:
                     if len(x.shape) == len(y.shape) == 1:
                         self.x, self.y = np.meshgrid(x, y)
-                        self.x, self.y = self.x.T, self.y.T 
+                        self.x, self.y = self.x.T, self.y.T
                         self.__lonlat2dist()
                         if s.shape[:2] != self.x.shape or s.shape[:2] != self.y.shape:
                             raise ValueError('Incorrect shape of coordinate arrays')
@@ -270,7 +269,7 @@ class ScalarHorizontal(object):
             else:
                 self.x = x
                 self.y = y
-        else:                
+        else:
             self.x = x
             self.y = y
 
@@ -290,8 +289,8 @@ class ScalarHorizontal(object):
 #        if self.nd > 0:
 #            fx = np.zeros(self.s.shape, dtype=self.s.dtype)
 #            fy = np.zeros(self.s.shape, dtype=self.s.dtype)
-#            for i in xrange(self.nd):
-#                fx[:,:,i] = dfdx(self.s[:,:,i], self.x, 0) 
+#            for i in range(self.nd):
+#                fx[:,:,i] = dfdx(self.s[:,:,i], self.x, 0)
 #                fy[:,:,i] = dfdx(self.s[:,:,i], self.y, 1)
 #        else:
 #            fx = dfdx(self.s, self.x, 0)
