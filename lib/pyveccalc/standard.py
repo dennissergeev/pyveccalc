@@ -104,6 +104,18 @@ class Wind3D(object):
         f = -f
         return f
 
+    def vort_tend_hadv_flux(self):
+        """
+        Horizontal advection in flux form
+
+        $\nabla_p \cdot (\zeta\vec v)$
+        """
+        self.__assert_vort()
+        f = dfdx(self.u*self.vo, self.x, 0) + \
+            dfdx(self.v*self.vo, self.y, 1)
+        f = -f
+        return f
+
     def vort_tend_vadv(self):
         """
         Vertical advection of relative vorticity
@@ -139,6 +151,18 @@ class Wind3D(object):
         f = - div*(self.vo + fcor)
         return f
 
+    def vort_tend_div_fcor(self):
+        """
+        Product of divergence and Coriolis parameter
+
+        $f\nabla_p\cdot\vec v$
+        """
+        div = self.hdiv()
+        fcor = utils.calc_fcor(self.lats)
+        fcor = fcor.repeat(div.shape[-1]).reshape(div.shape)
+        f = - div*fcor
+        return f
+
     def vort_tend_twist(self):
         """
         Tilting/twisting term
@@ -152,14 +176,37 @@ class Wind3D(object):
         f = - (dwdx*dvdp - dwdy*dudp)
         return f
 
-    def vort_tend_rhs(self):
-        # Bluestein, 1992 Vol I, sect. 4.5.4
-        self.vo = self.vort_z()
-        hadv = self.vort_tend_hadv()
-        vadv = self.vort_tend_vadv()
-        planet_vort_adv = self.planet_vort_adv()
-        stretch = self.vort_tend_stretch()
-        twist = self.vort_tend_twist()
+    def vort_tend_rhs(self, form='standard'):
+        """
+        Right-hand side of vorticity equation in pressure coordinates
+
+        Kwargs:
+        -------
+            form: str, standard | flux
+                 standard : standard form
+                 flux : horizontal advection in flux form, stretching term -> div*fcor
+        Returns:
+        --------
+            sequence of terms of `numpy.ndarray` type
+
+        Reference: Bluestein, 1992 Vol I, sect. 4.5.4
+        """
+        if form.lower() == 'standard':
+            self.vo = self.vort_z()
+            hadv = self.vort_tend_hadv()
+            vadv = self.vort_tend_vadv()
+            planet_vort_adv = self.planet_vort_adv()
+            stretch = self.vort_tend_stretch()
+            twist = self.vort_tend_twist()
+        elif form.lower() == 'flux':
+            self.vo = self.vort_z()
+            hadv = self.vort_tend_hadv_flux()
+            vadv = self.vort_tend_vadv()
+            planet_vort_adv = self.planet_vort_adv()
+            stretch = self.vort_tend_div_fcor()
+            twist = self.vort_tend_twist()
+        else:
+            raise ValueError('`form` keyword should be either "standard" or "flux"')
 
         return hadv, vadv, planet_vort_adv, stretch, twist
 

@@ -12,4 +12,4 @@ from . import utils
 __all__ = []
 
 # Package version number.
-__version__ = '0.1.2'
+__version__ = '0.1.3'
