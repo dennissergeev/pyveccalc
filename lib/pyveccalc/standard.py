@@ -78,7 +78,7 @@ class Wind3D(object):
         """
         Relative vorticity (z-component of curl)
 
-        $\frac{\partial \zeta}{\partial t}$
+        $\frac{\partial v}{\partial x} - \frac{\partial u}{\partial y}$
         """
         f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
         return f
@@ -91,6 +91,26 @@ class Wind3D(object):
         """
         f = dfdx(self.u, self.x, 0) + dfdx(self.v, self.y, 1)
         return f
+
+#    def _udvodx(self):
+#        self.__assert_vort()
+#        f = self.u*dfdx(self.vo, self.x, 0)
+#        return f
+#
+#    def _vdvody(self):
+#        self.__assert_vort()
+#        f = self.v*dfdx(self.vo, self.y, 1)
+#        return f
+#
+#    def _duvodx(self):
+#        self.__assert_vort()
+#        f = dfdx(self.u*self.vo, self.x, 0)
+#        return f
+#
+#    def _dvvody(self):
+#        self.__assert_vort()
+#        f = dfdx(self.v*self.vo, self.y, 1)
+#        return f
 
     def vort_tend_hadv(self):
         """
