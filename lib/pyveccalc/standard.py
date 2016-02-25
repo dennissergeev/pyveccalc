@@ -78,7 +78,7 @@ class Wind3D(object):
         """
         Relative vorticity (z-component of curl)
 
-        $\frac{\partial v}{\partial x} - \frac{\partial u}{\partial y}$
+        r$\frac{\partial v}{\partial x} - \frac{\partial u}{\partial y}$
         """
         f = dfdx(self.v, self.x, 0) - dfdx(self.u, self.y, 1)
         return f
@@ -87,7 +87,7 @@ class Wind3D(object):
         """
         Horizontal divergence
 
-        $\nabla_p\cdot\vec v$
+        r$\nabla_p\cdot\vec v$
         """
         f = dfdx(self.u, self.x, 0) + dfdx(self.v, self.y, 1)
         return f
@@ -116,7 +116,7 @@ class Wind3D(object):
         """
         Horizontal advection of relative vorticity
 
-        $\vec v\cdot \nabla_p \zeta$
+        r$\vec v\cdot \nabla_p \zeta$
         """
         self.__assert_vort()
         f = self.u*dfdx(self.vo, self.x, 0) + \
@@ -128,7 +128,7 @@ class Wind3D(object):
         """
         Horizontal advection in flux form
 
-        $\nabla_p \cdot (\zeta\vec v)$
+        r$\nabla_p \cdot (\zeta\vec v)$
         """
         self.__assert_vort()
         f = dfdx(self.u*self.vo, self.x, 0) + \
@@ -140,7 +140,7 @@ class Wind3D(object):
         """
         Vertical advection of relative vorticity
 
-        $\omega \frac{\partial \zeta}{\partial p}$
+        r$\omega \frac{\partial \zeta}{\partial p}$
         """
         self.__assert_vort()
         f = - self.w*dfdx(self.vo, self.z, 2)
@@ -150,7 +150,7 @@ class Wind3D(object):
         """
         Planetary vorticity advection
 
-        $\beta v$
+        r$\beta v$
         """
         fcor = utils.calc_fcor(self.lats)
         beta = dfdx(fcor,self.y,1)
@@ -162,7 +162,7 @@ class Wind3D(object):
         """
         Stretching term
 
-        $\nabla_p\cdot\vec v (\zeta+f)$
+        r$\nabla_p\cdot\vec v (\zeta+f)$
         """
         self.__assert_vort()
         div = self.hdiv()
@@ -175,7 +175,7 @@ class Wind3D(object):
         """
         Product of divergence and Coriolis parameter
 
-        $f\nabla_p\cdot\vec v$
+        r$f\nabla_p\cdot\vec v$
         """
         div = self.hdiv()
         fcor = utils.calc_fcor(self.lats)
@@ -187,7 +187,7 @@ class Wind3D(object):
         """
         Tilting/twisting term
 
-        $\vec k \cdot \nabla\omega\times\frac{\partial\vec v}{\partial p}$
+        r$\vec k \cdot \nabla\omega\times\frac{\partial\vec v}{\partial p}$
         """
         dwdx = dfdx(self.w, self.x, 0)
         dwdy = dfdx(self.w, self.y, 1)
