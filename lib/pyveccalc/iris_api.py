@@ -4,8 +4,11 @@ Iris interface to pyveccalc
 """
 import numpy as np
 
+import cf_units
 import iris
 from iris.analysis.calculus import differentiate
+
+from . import utils
 
 def cube_ellips_to_cart(cube, dx=1, dy=None,
                         rm_z_bounds=True,
@@ -16,8 +19,8 @@ def cube_ellips_to_cart(cube, dx=1, dy=None,
     res = cube.copy()
     if dy is None:
         dy = dx
-    xpoints = np.array(range(u_orig.coord('grid_longitude').shape[0]))*dx
-    ypoints = np.array(range(u_orig.coord('grid_latitude').shape[0]))*dy
+    xpoints = np.array(range(cube.coord('grid_longitude').shape[0]))*dx
+    ypoints = np.array(range(cube.coord('grid_latitude').shape[0]))*dy
 
     xcoord = iris.coords.DimCoord(points=xpoints, standard_name='longitude',
                                                   long_name='distance_along_x_axis',
@@ -29,15 +32,15 @@ def cube_ellips_to_cart(cube, dx=1, dy=None,
     zcoord = iris.coords.DimCoord.from_coord(cube.coord('atmosphere_hybrid_height_coordinate'))
     res.remove_coord(cube.coord('atmosphere_hybrid_height_coordinate'))
     # Get rid of unnecessary coordinates that hinder cube.coord() method
-    if remove_z_bounds:
+    if rm_z_bounds:
         zcoord.bounds = None
-    if remove_z_varname:
+    if rm_z_varname:
         zcoord.var_name = None
-    if remove_surf_alt:
+    if rm_surf_alt:
         res.remove_coord('surface_altitude')
-    if remove_sigma:
+    if rm_sigma:
         res.remove_coord('sigma')
-    if remove_aux_factories:
+    if rm_aux_factories:
         [res.remove_aux_factory(i) for i in res.aux_factories]
 
     [res.remove_coord(i) for i in res.dim_coords]
