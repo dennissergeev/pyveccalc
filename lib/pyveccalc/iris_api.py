@@ -71,12 +71,16 @@ class AtmosFlow:
         .. math::
             \sqrt{u^2 + v^2 + w^2}
         """
-        res = 0
-        for cmpnt in self.wind_cmpnt:
-            res += cmpnt**2
-        res = res**0.5
-        res.rename('wind_speed')
-        return res
+        try:
+            return self._wspd
+        except AttributeError:
+            res = 0
+            for cmpnt in self.wind_cmpnt:
+                res += cmpnt**2
+            res = res**0.5
+            res.rename('wind_speed')
+            self._wspd = res
+            return self._wspd
     
     @property
     def curl_z(self):
@@ -85,14 +89,15 @@ class AtmosFlow:
         .. math::
             \zeta = v_x - u_y
         """
-        try:
+        try: 
             return self._curl_z
         except AttributeError:
             dv_dx = cube_deriv(self.v, self.xcoord)
             du_dy = cube_deriv(self.u, self.ycoord)
             self._curl_z = dv_dx - du_dy
-        return self._curl_z
-
+            self._curl_z.rename('atmosphere_relative_vorticity')
+            return self._curl_z
+      
     @property
     def div_h(self):
         r"""
@@ -100,11 +105,15 @@ class AtmosFlow:
         .. math::
             D_h = u_x + v_y
         """
-        du_dx = cube_deriv(self.u, self.xcoord)
-        dv_dy = cube_deriv(self.v, self.ycoord)
-        res = du_dx + dv_dy
-        return res
-
+        try:
+            return self._div_h
+        except AttributeError:
+            du_dx = cube_deriv(self.u, self.xcoord)
+            dv_dy = cube_deriv(self.v, self.ycoord)
+            self._div_h = du_dx + dv_dy
+            self._div_h.rename('divergence_of_wind')
+            return self._div_h
+    
     @property
     def dfm_stretch(self):
         r"""
@@ -112,11 +121,15 @@ class AtmosFlow:
         .. math::
             Def = u_x - v_y
         """
-        du_dx = cube_deriv(self.u, self.xcoord)
-        dv_dy = cube_deriv(self.v, self.ycoord)
-        res = du_dx - dv_dy
-        return res
-
+        try:
+            return self._dfm_stretch
+        except AttributeError:
+            du_dx = cube_deriv(self.u, self.xcoord)
+            dv_dy = cube_deriv(self.v, self.ycoord)
+            self._dfm_stretch = du_dx - dv_dy
+            self._dfm_stretch.rename('stretching_deformation_2d')
+            return self._dfm_stretch
+    
     @property
     def dfm_shear(self):
         r"""
@@ -124,16 +137,20 @@ class AtmosFlow:
         .. math::
             Def' = u_y + v_x
         """
-        dv_dx = cube_deriv(self.v, self.xcoord)
-        du_dy = cube_deriv(self.u, self.ycoord)
-        res = du_dy + dv_dx
-        return res
-
+        try:
+            return self._dfm_shear
+        except AttributeError:
+            dv_dx = cube_deriv(self.v, self.xcoord)
+            du_dy = cube_deriv(self.u, self.ycoord)
+            self._dfm_shear = du_dy + dv_dx
+            self._dfm_shear.rename('shearing_deformation_2d')
+            return self._dfm_shear
+    
     @property
     def kvn(self):
         r"""
         Calculate kinematic vorticity number
-
+        
         .. math::
             W_k=\frac{||\Omega||}{||S||}=\frac{\sqrt{\zeta^2}}{\sqrt{D_h^2 + Def^2 + Def'^2}}
         where
@@ -143,6 +160,11 @@ class AtmosFlow:
             Def = u_x - v_y
             Def' = u_y + v_x
         """
-        numerator = self.curl_z
-        denominator = (self.div_h**2 + self.dfm_stretch**2 + self.dfm_shear**2)**0.5
-        return numerator/denominator
+        try:
+            return self._kvn
+        except AttributeError:
+            numerator = self.curl_z
+            denominator = (self.div_h**2 + self.dfm_stretch**2 + self.dfm_shear**2)**0.5
+            self._kvn = numerator/denominator
+            self._kvn.rename('kinematic_vorticity_number_2d')
+            return self._kvn
