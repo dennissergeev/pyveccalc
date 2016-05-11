@@ -7,6 +7,47 @@ import numpy as np
 import iris
 from iris.analysis.calculus import differentiate
 
+def cube_ellips_to_cart(cube, dx=1, dy=None,
+                        rm_z_bounds=True,
+                        rm_z_varname=True,
+                        rm_surf_alt=True,
+                        rm_sigma=True,
+                        rm_aux_factories=True):
+    res = cube.copy()
+    if dy is None:
+        dy = dx
+    xpoints = np.array(range(u_orig.coord('grid_longitude').shape[0]))*dx
+    ypoints = np.array(range(u_orig.coord('grid_latitude').shape[0]))*dy
+
+    xcoord = iris.coords.DimCoord(points=xpoints, standard_name='longitude',
+                                                  long_name='distance_along_x_axis',
+                                                  units=cf_units.Unit('m'))
+    ycoord = iris.coords.DimCoord(points=ypoints, standard_name='latitude',
+                                                  long_name='distance_along_y_axis',
+                                                  units=cf_units.Unit('m'))
+
+    zcoord = iris.coords.DimCoord.from_coord(cube.coord('atmosphere_hybrid_height_coordinate'))
+    res.remove_coord(cube.coord('atmosphere_hybrid_height_coordinate'))
+    # Get rid of unnecessary coordinates that hinder cube.coord() method
+    if remove_z_bounds:
+        zcoord.bounds = None
+    if remove_z_varname:
+        zcoord.var_name = None
+    if remove_surf_alt:
+        res.remove_coord('surface_altitude')
+    if remove_sigma:
+        res.remove_coord('sigma')
+    if remove_aux_factories:
+        [res.remove_aux_factory(i) for i in res.aux_factories]
+
+    [res.remove_coord(i) for i in res.dim_coords]
+
+    res.add_dim_coord(zcoord,0)
+    res.add_dim_coord(ycoord,1)
+    res.add_dim_coord(xcoord,2)
+
+    return res
+
 def check_coords(cubes):
     """Check the cubes coordinates for consistency"""
     # get the names of all coords binned into useful comparison groups
