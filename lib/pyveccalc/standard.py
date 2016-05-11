@@ -92,6 +92,13 @@ class Wind3D(object):
         f = dfdx(self.u, self.x, 0) + dfdx(self.v, self.y, 1)
         return f
 
+    def kvn(self):
+        numerator = self.vort_z()
+        dfm_stretch = dfdx(self.u, self.x, 0) - dfdx(self.v, self.y, 1)
+        dfm_shear = dfdx(self.u, self.y, 1) + dfdx(self.v, self.x, 0)
+        denominator = (self.hdiv()**2 + dfm_shear**2 + dfm_stretch**2)**0.5
+        return numerator/denominator
+
 #    def _udvodx(self):
 #        self.__assert_vort()
 #        f = self.u*dfdx(self.vo, self.x, 0)
