@@ -2,7 +2,7 @@
 """Build and install the windspharm package."""
 from setuptools import setup
 
-for line in open('lib/pyveccalc/__init__.py').readlines():
+for line in open('pyveccalc/__init__.py').readlines():
     if line.startswith('__version__'):
         exec(line)
 
@@ -18,5 +18,4 @@ setup(name='pyveccalc',
       Python library for wind vector calculations in finite differences
       """,
       packages=packages,
-      package_dir={'':'lib'},
       install_requires=['numpy'],)

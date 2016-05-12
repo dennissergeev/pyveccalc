@@ -3,7 +3,7 @@
 Iris interface to pyveccalc
 """
 import numpy as np
-
+from cached_property import cached_property
 import cf_units
 import iris
 from iris.analysis.calculus import differentiate
@@ -72,18 +72,22 @@ def check_coords(cubes):
 def cube_deriv(cube, coord):
     """
     Wrapper to `iris.analysis.calculus.differentiate` to differentiate a cube
-    and regrid the result to the points of the cube (not the mid-points)
+    and regrid/interpolate the result from mid-points to the points of the input cube
     """
-    cube_diff = differentiate(cube, coord)
-    return cube_diff.regridded(cube)
-
+    res = differentiate(cube, coord)
+    if res.coord(axis='x') != cube.coord(axis='x') or res.coord(axis='y') != cube.coord(axis='y'):
+        res = res.regridded(cube)
+    elif res.coord(axis='z') != cube.coord(axis='z'):
+        cube_z_points = [(cube.coord(axis='z').name(), cube.coord(axis='z').points)]
+        res = res.interpolate(cube_z_points, iris.analysis.Linear())
+    return res
 
 class AtmosFlow:
     """Atmospheric Flow in Cartesian coords"""
     def __init__(self, u, v, w, aux_cubes=None, lats=45.):
-        self.u = u
-        self.v = v
-        self.w = w
+        self.u = u #.copy()
+        self.v = v #.copy()
+        self.w = w #.copy()
 
         self.main_cubes = list(filter(None, [u, v, w]))
         self.wind_cmpnt = list(filter(None, [u, v, w]))
@@ -111,214 +115,158 @@ class AtmosFlow:
         msg += "\n".join(tuple(i.name() for i in self.main_cubes))
         return msg
 
-    @property
+    @cached_property
     def du_dx(self):
         r"""
         Derivative of u-wind along the x-axis
         .. math::
             u_x = \frac{\partial u}{\partial x}
         """
-        try:
-            return self._du_dx
-        except AttributeError:
-            self._du_dx = cube_deriv(self.u, self.xcoord)
-            return self._du_dx
+        return cube_deriv(self.u, self.xcoord)
 
-    @property
+    @cached_property
     def du_dy(self):
         r"""
         Derivative of u-wind along the y-axis
         .. math::
             u_y = \frac{\partial u}{\partial y}
         """
-        try:
-            return self._du_dy
-        except AttributeError:
-            self._du_dy = cube_deriv(self.u, self.ycoord)
-            return self._du_dy
+        return cube_deriv(self.u, self.ycoord)
 
-    @property
+    @cached_property
     def du_dz(self):
         r"""
         Derivative of u-wind along the z-axis
         .. math::
             u_z = \frac{\partial u}{\partial z}
         """
-        try:
-            return self._du_dz
-        except AttributeError:
-            self._du_dz = cube_deriv(self.u, self.zcoord)
-            return self._du_dz
+        return cube_deriv(self.u, self.zcoord)
 
-    @property
+    @cached_property
     def dv_dx(self):
         r"""
         Derivative of v-wind along the x-axis
         .. math::
             v_x = \frac{\partial v}{\partial x}
         """
-        try:
-            return self._dv_dx
-        except AttributeError:
-            self._dv_dx = cube_deriv(self.v, self.xcoord)
-            return self._dv_dx
+        return cube_deriv(self.v, self.xcoord)
 
-    @property
+    @cached_property
     def dv_dy(self):
         r"""
         Derivative of v-wind along the y-axis
         .. math::
             v_y = \frac{\partial v}{\partial y}
         """
-        try:
-            return self._dv_dy
-        except AttributeError:
-            self._dv_dy = cube_deriv(self.v, self.ycoord)
-            return self._dv_dy
+        return cube_deriv(self.v, self.ycoord)
 
-    @property
+    @cached_property
     def dv_dz(self):
         r"""
         Derivative of v-wind along the z-axis
         .. math::
             v_z = \frac{\partial v}{\partial z}
         """
-        try:
-            return self._dv_dz
-        except AttributeError:
-            self._dv_dz = cube_deriv(self.v, self.zcoord)
-            return self._dv_dz
+        return cube_deriv(self.v, self.zcoord)
 
-    @property
+    @cached_property
     def dw_dx(self):
         r"""
         Derivative of w-wind along the x-axis
         .. math::
             w_x = \frac{\partial w}{\partial x}
         """
-        try:
-            return self._dw_dx
-        except AttributeError:
-            self._dw_dx = cube_deriv(self.w, self.xcoord)
-            return self._dw_dx
+        return cube_deriv(self.w, self.xcoord)
 
-    @property
+    @cached_property
     def dw_dy(self):
         r"""
         Derivative of w-wind along the y-axis
         .. math::
             w_y = \frac{\partial w}{\partial y}
         """
-        try:
-            return self._dw_dy
-        except AttributeError:
-            self._dw_dy = cube_deriv(self.w, self.ycoord)
-            return self._dw_dy
+        return cube_deriv(self.w, self.ycoord)
 
-    @property
+    @cached_property
     def dw_dz(self):
         r"""
         Derivative of w-wind along the z-axis
         .. math::
             w_z = \frac{\partial w}{\partial z}
         """
-        try:
-            return self._dw_dz
-        except AttributeError:
-            self._dw_dz = cube_deriv(self.w, self.zcoord)
-            return self._dw_dz
+        return cube_deriv(self.w, self.zcoord)
 
-    @property
+    @cached_property
     def wspd(self):
         r"""
         Calculate wind speed (magnitude)
         .. math::
             \sqrt{u^2 + v^2 + w^2}
         """
-        try:
-            return self._wspd
-        except AttributeError:
-            res = 0
-            for cmpnt in self.wind_cmpnt:
-                res += cmpnt**2
+        res = 0
+        for cmpnt in self.wind_cmpnt:
+            res += cmpnt**2
             res = res**0.5
             res.rename('wind_speed')
-            self._wspd = res
-            return self._wspd
+        return res
 
-    @property
+    @cached_property
     def rel_vort(self):
         r"""
         Calculate the vertical component of the vorticity vector
         .. math::
             \zeta = v_x - u_y
         """
-        try:
-            return self._rel_vort
-        except AttributeError:
-            self._rel_vort = self.dv_dx - self.du_dy
-            self._rel_vort.rename('atmosphere_relative_vorticity')
-            return self._rel_vort
+        res = self.dv_dx - self.du_dy
+        res.rename('atmosphere_relative_vorticity')
+        return res
 
-    @property
+    @cached_property
     def div_h(self):
         r"""
         Calculate the horizontal divergence
         .. math::
             D_h = u_x + v_y
         """
-        try:
-            return self._div_h
-        except AttributeError:
-            self._div_h = self.du_dx + self.dv_dy
-            self._div_h.rename('divergence_of_wind')
-            return self._div_h
+        res = self.du_dx + self.dv_dy
+        res.rename('divergence_of_wind')
+        return res
 
-    @property
+    @cached_property
     def rel_vort_hadv(self):
         r"""
         Calculate the horizontal advection of relative vorticity
         .. math::
             \vec v\cdot \nabla \zeta
         """
-        try:
-            return self._rel_vort_hadv
-        except AttributeError:
-            self._rel_vort_hadv = self.u*cube_deriv(self.rel_vort, self.xcoord) + \
-                                  self.v*cube_deriv(self.rel_vort, self.ycoord)
-            self._rel_vort_hadv.rename('horizontal_advection_of_atmosphere_relative_vorticity')
-            return self._rel_vort_hadv
+        res = self.u*cube_deriv(self.rel_vort, self.xcoord) + \
+              self.v*cube_deriv(self.rel_vort, self.ycoord)
+        res.rename('horizontal_advection_of_atmosphere_relative_vorticity')
+        return res
 
-    @property
+    @cached_property
     def rel_vort_vadv(self):
         r"""
         Calculate the vertical advection of relative vorticity
         .. math::
             w\frac{\partial \zeta}{\partial z}
         """
-        try:
-            return self._rel_vort_vadv
-        except AttributeError:
-            # TODO: check d_dz calculation!
-            self._rel_vort_vadv = self.w*cube_deriv(self.rel_vort, zcoord)
-            self._rel_vort_vadv.rename('vertical_advection_of_atmosphere_relative_vorticity')
-            return self._rel_vort_vadv
+        res = self.w*cube_deriv(self.rel_vort, zcoord)
+        res.rename('vertical_advection_of_atmosphere_relative_vorticity')
+        return res
 
-    @property
+    @cached_property
     def rel_vort_stretch(self):
         r"""
         Stretching term
         .. math::
             \nabla\cdot\vec v (\zeta+f)
         """
-        try:
-            return self._rel_vort_stretch
-        except AttributeError:
-            self._rel_vort_stretch = self.div_h*(self.rel_vort + self.fcor)
-            self._rel_vort_stretch.rename('stretching_term_of_atmosphere_relative_vorticity_budget')
-            return self._rel_vort_stretch
+        res = self.div_h*(self.rel_vort + self.fcor)
+        res.rename('stretching_term_of_atmosphere_relative_vorticity_budget')
+        return res
 
-    @property
+    @cached_property
     def rel_vort_tilt(self):
         r"""
         Tilting (twisting) term
@@ -327,42 +275,33 @@ class AtmosFlow:
             \frac{\partial w}{\partial x}*\frac{\partial v}{\partial z} -
             \frac{\partial w}{\partial y}*\frac{\partial u}{\partial z}
         """
-        try:
-            return self._rel_vort_tilt
-        except AttributeError:
-            self._rel_vort_tilt = self.dw_dx * self.dv_dz - self.dw_dy * self.du_dz
-            self._rel_vort_tilt.rename('tilting_term_of_atmosphere_relative_vorticity_budget')
-            return self._rel_vort_tilt
+        res = self.dw_dx * self.dv_dz - self.dw_dy * self.du_dz
+        res.rename('tilting_term_of_atmosphere_relative_vorticity_budget')
+        return res
 
-    @property
+    @cached_property
     def dfm_stretch(self):
         r"""
         Calculate the stretching deformation
         .. math::
             Def = u_x - v_y
         """
-        try:
-            return self._dfm_stretch
-        except AttributeError:
-            self._dfm_stretch = self.du_dx - self.dv_dy
-            self._dfm_stretch.rename('stretching_deformation_2d')
-            return self._dfm_stretch
+        res = self.du_dx - self.dv_dy
+        res.rename('stretching_deformation_2d')
+        return res
 
-    @property
+    @cached_property
     def dfm_shear(self):
         r"""
         Calculate the shearing deformation
         .. math::
             Def' = u_y + v_x
         """
-        try:
-            return self._dfm_shear
-        except AttributeError:
-            self._dfm_shear = self.du_dy + self.dv_dx
-            self._dfm_shear.rename('shearing_deformation_2d')
-            return self._dfm_shear
+        res = self.du_dy + self.dv_dx
+        res.rename('shearing_deformation_2d')
+        return res
 
-    @property
+    @cached_property
     def kvn(self):
         r"""
         Calculate kinematic vorticity number
@@ -379,11 +318,8 @@ class AtmosFlow:
         Reference:
             http://dx.doi.org/10.3402/tellusa.v68.29464
         """
-        try:
-            return self._kvn
-        except AttributeError:
-            numerator = self.rel_vort
-            denominator = (self.div_h**2 + self.dfm_stretch**2 + self.dfm_shear**2)**0.5
-            self._kvn = numerator/denominator
-            self._kvn.rename('kinematic_vorticity_number_2d')
-            return self._kvn
+        numerator = self.rel_vort
+        denominator = (self.div_h**2 + self.dfm_stretch**2 + self.dfm_shear**2)**0.5
+        res = numerator/denominator
+        res.rename('kinematic_vorticity_number_2d')
+        return res
