@@ -10,12 +10,21 @@ from iris.analysis.calculus import differentiate
 
 from . import utils
 
-def cube_ellips_to_cart(cube, dx=1, dy=None,
-                        rm_z_bounds=True,
-                        rm_z_varname=True,
-                        rm_surf_alt=True,
-                        rm_sigma=True,
-                        rm_aux_factories=True):
+def replace_dimcoord(cube, src_cube, axes='xy'):
+    for axis in axes:
+        oldcoord = cube.coord(axis=axis)
+        newcoord = src_cube.coord(axis=axis)
+        ndim = cube.coord_dims(oldcoord)[0]
+        cube.remove_coord(oldcoord)
+        cube.add_dim_coord(newcoord, ndim)
+
+
+def replace_lonlat_dimcoord_with_cart(cube, dx=1, dy=None,
+                                      rm_z_bounds=True,
+                                      rm_z_varname=True,
+                                      rm_surf_alt=True,
+                                      rm_sigma=True,
+                                      rm_aux_factories=True):
     res = cube.copy()
     if dy is None:
         dy = dx
