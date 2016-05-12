@@ -10,14 +10,21 @@ from iris.analysis.calculus import differentiate
 
 from . import utils
 
-def replace_dimcoord(cube, src_cube, axes='xy'):
+def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
+    if return_copy:
+        cp_cube = cube.copy()
     for axis in axes:
         oldcoord = cube.coord(axis=axis)
         newcoord = src_cube.coord(axis=axis)
         ndim = cube.coord_dims(oldcoord)[0]
-        cube.remove_coord(oldcoord)
-        cube.add_dim_coord(newcoord, ndim)
-
+        if return_copy:
+            cp_cube.remove_coord(oldcoord)
+            cp_cube.add_dim_coord(newcoord, ndim)
+        else:
+            cube.remove_coord(oldcoord)
+            cube.add_dim_coord(newcoord, ndim)
+    if return_copy:
+        return cp_cube
 
 def replace_lonlat_dimcoord_with_cart(cube, dx=1, dy=None,
                                       rm_z_bounds=True,
