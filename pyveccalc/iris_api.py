@@ -10,6 +10,11 @@ from iris.analysis.calculus import differentiate
 
 from . import utils
 
+is_physical = lambda z: z.name() in ('height', 'level_height',
+                                     'atmosphere_hybrid_height_coordinate',
+                                     'pressure')
+notdimless_and_1d = lambda z: not z.units.is_dimensionless() and z.ndim==1
+
 def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
     if return_copy:
         cp_cube = cube.copy()
@@ -26,45 +31,74 @@ def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
     if return_copy:
         return cp_cube
 
-def replace_lonlat_dimcoord_with_cart(cube, dx=1, dy=None,
-                                      rm_z_bounds=True,
-                                      rm_z_varname=True,
-                                      rm_surf_alt=True,
-                                      rm_sigma=True,
-                                      rm_aux_factories=True):
+def prepare_cube_zcoord(cube, rm_z_bounds=True, rm_z_varname=True):
+    # Pick physically meaningful coordinate instead of level indices
     res = cube.copy()
-    if dy is None:
-        dy = dx
-    xpoints = np.array(range(cube.coord('grid_longitude').shape[0]))*dx
-    ypoints = np.array(range(cube.coord('grid_latitude').shape[0]))*dy
+    z_ax_coords = res.coords(axis='z')
+    suitable_z = list(filter(notdimless_and_1d, z_ax_coords))
+    if len(suitable_z) > 0:
+        suitable_z = list(filter(is_physical, suitable_z))
+        if len(suitable_z) == 0:
+            # TODO: what if suitable_z > 1 ?
+            msg = "Warning: the name of '{name}' is not among the preferred: {phys}"
+            print(msg.format(name=z.name(), phys=', '.join(phys_coord)))
+        zcoord = suitable_z[0]
+    else:
+        raise ValueError('No suitable coords among these: {z}'.format(z=z_ax_coords))
 
-    xcoord = iris.coords.DimCoord(points=xpoints, standard_name='longitude',
-                                                  long_name='distance_along_x_axis',
-                                                  units=cf_units.Unit('m'))
-    ycoord = iris.coords.DimCoord(points=ypoints, standard_name='latitude',
-                                                  long_name='distance_along_y_axis',
-                                                  units=cf_units.Unit('m'))
-
-    zcoord = iris.coords.DimCoord.from_coord(cube.coord('atmosphere_hybrid_height_coordinate'))
-    res.remove_coord(cube.coord('atmosphere_hybrid_height_coordinate'))
-    # Get rid of unnecessary coordinates that hinder cube.coord() method
     if rm_z_bounds:
         zcoord.bounds = None
     if rm_z_varname:
         zcoord.var_name = None
+
+    if not zcoord in res.dim_coords:
+        for z in z_ax_coords:
+            if z in res.dim_coords:
+                zdim = res.coord_dims(z)[0]
+                res.remove_coord(z)
+        res.remove_coord(zcoord)
+        zcoord = iris.coords.DimCoord.from_coord(zcoord)
+        res.add_dim_coord(zcoord, zdim)
+    return res
+
+def replace_lonlat_dimcoord_with_cart(cube, dx=1, dy=None, dxdy_units='m'):
+    res = cube.copy()
+    if dy is None:
+        dy = dx
+    for axis, standard_name, step in zip(('x',         'y'),
+                                         ('longitude', 'latitude'),
+                                         ( dx,           dy)):
+        icoord = res.coord(axis=axis)
+        coord_dim = res.coord_dims(icoord)[0]
+        res.remove_coord(icoord)
+
+        eq_spaced_points = np.array(range(icoord.shape[0]))*step
+        new_coord = iris.coords.DimCoord(points=eq_spaced_points,
+                                         standard_name=standard_name,
+                                         long_name='distance_along_{0}_axis'.format(axis),
+                                         units=dxdy_units)
+
+        res.add_dim_coord(new_coord, coord_dim)
+
+    return res
+
+def prepare_cube_on_model_levels(cube, lonlat2cart_kw={}, prep_zcoord_kw={},
+                                 rm_surf_alt=True,
+                                 rm_sigma=True,
+                                 rm_aux_factories=True):
+    res = cube.copy()
+    if isinstance(lonlat2cart_kw, dict):
+        res = replace_lonlat_dimcoord_with_cart(res, **lonlat2cart_kw)
+    if isinstance(prep_zcoord_kw, dict):
+        res = prepare_cube_zcoord(res, **prep_zcoord_kw)
+    # Get rid of unnecessary coordinates that hinder cube.coord() method
     if rm_surf_alt:
         res.remove_coord('surface_altitude')
     if rm_sigma:
         res.remove_coord('sigma')
     if rm_aux_factories:
+        # aka remove DerivedCoords
         [res.remove_aux_factory(i) for i in res.aux_factories]
-
-    [res.remove_coord(i) for i in res.dim_coords]
-
-    res.add_dim_coord(zcoord,0)
-    res.add_dim_coord(ycoord,1)
-    res.add_dim_coord(xcoord,2)
-
     return res
 
 def check_coords(cubes):
