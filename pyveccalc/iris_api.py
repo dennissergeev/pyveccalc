@@ -306,7 +306,7 @@ class AtmosFlow:
         .. math::
             w\frac{\partial \zeta}{\partial z}
         """
-        res = self.w*cube_deriv(self.rel_vort, zcoord)
+        res = self.w*cube_deriv(self.rel_vort, self.zcoord)
         res.rename('vertical_advection_of_atmosphere_relative_vorticity')
         return res
 
