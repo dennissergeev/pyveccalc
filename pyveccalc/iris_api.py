@@ -381,13 +381,20 @@ class AtmosFlow:
 
     @cached_property
     def density(self):
+        r"""
+        Air density
+        .. math::
+            \rho = \frac{p}{R_d T}
+                 = \frac{p}{R_d \theta\pi}
+                 = \frac{p}{R_d \theta (p/p_0)^{R_d/c_p}}
+        """
         try:
             # TODO: more flexible choosing
             #self.cubes.extract_strict('air_pressure')
             #self.cubes.extract_strict('air_potential_temperature')
             res = self.pres / (self.theta * (self.pres / self.p0) ** (self.R_d / self.c_p).data * self.R_d)
             res.rename('air_density')
-            self.main_cubes(res)
+            self.main_cubes.append(res)
             return res
 
         #except iris.exceptions.ConstraintMismatchError:
@@ -398,9 +405,15 @@ class AtmosFlow:
 
     @cached_property
     def specific_volume(self):
+        r"""
+        Air Specific Volume
+
+        .. math::
+            \alpha = \rho^{-1}
+        """
         res = self.density ** (-1)
         res.rename('air_specific_volume')
-        self.main_cubes(res)
+        self.main_cubes.append(res)
         return res
 
     @cached_property
