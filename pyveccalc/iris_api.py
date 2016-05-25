@@ -15,6 +15,8 @@ is_physical = lambda z: z.name() in ('height', 'level_height',
                                      'pressure')
 notdimless_and_1d = lambda z: not z.units.is_dimensionless() and z.ndim==1
 
+iscube = lambda x: isinstance(x, iris.cube.Cube)
+
 def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
     if return_copy:
         cp_cube = cube.copy()
@@ -134,16 +136,18 @@ def cube_deriv(cube, coord):
 
 class AtmosFlow:
     """Atmospheric Flow in Cartesian coords"""
-    def __init__(self, u, v, w, aux_cubes=None, lats=45.):
+    def __init__(self, u, v, w, lats=45., **kw_vars):
         self.u = u #.copy()
         self.v = v #.copy()
         self.w = w #.copy()
 
-        self.main_cubes = list(filter(None, [u, v, w]))
-        self.wind_cmpnt = list(filter(None, [u, v, w]))
-        thecube = self.main_cubes[0]
+        self.__dict__.update(kw_vars)
 
-        check_coords(self.main_cubes)
+        self.cubes = list(filter(iscube, self.__dict__.values()))
+        self.wind_cmpnt = list(filter(None, [self.u, self.v, self.w]))
+        thecube = self.cubes[0]
+
+        check_coords(self.cubes)
 
         # Get the dim_coord, or None if none exist, for the xyz dimensions
         self.xcoord = thecube.coord(axis='X')
@@ -162,7 +166,7 @@ class AtmosFlow:
 
     def __repr__(self):
         msg = "pyveccalc 'Atmospheric Flow' containing of:\n"
-        msg += "\n".join(tuple(i.name() for i in self.main_cubes))
+        msg += "\n".join(tuple(i.name() for i in self.cubes))
         return msg
 
     @cached_property
