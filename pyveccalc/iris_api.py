@@ -16,7 +16,7 @@ is_physical = lambda z: z.name() in ('height', 'level_height',
 notdimless_and_1d = lambda z: not z.units.is_dimensionless() and z.ndim==1
 
 iscube = lambda x: isinstance(x, iris.cube.Cube)
-
+iscube_and_not_scalar = lambda x: isinstance(x, iris.cube.Cube) and x.shape != ()
 def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
     if return_copy:
         cp_cube = cube.copy()
@@ -143,11 +143,12 @@ class AtmosFlow:
 
         self.__dict__.update(kw_vars)
 
-        self.cubes = list(filter(iscube, self.__dict__.values()))
-        self.wind_cmpnt = list(filter(None, [self.u, self.v, self.w]))
-        thecube = self.cubes[0]
+        self.cubes = iris.cube.CubeList(filter(iscube, self.__dict__.values()))
+        self.main_cubes = iris.cube.CubeList(filter(iscube_and_not_scalar, self.__dict__.values()))
+        self.wind_cmpnt = iris.cube.CubeList(filter(None, [self.u, self.v, self.w]))
+        thecube = self.main_cubes[0]
 
-        check_coords(self.cubes)
+        check_coords(self.main_cubes)
 
         # Get the dim_coord, or None if none exist, for the xyz dimensions
         self.xcoord = thecube.coord(axis='X')
@@ -336,7 +337,7 @@ class AtmosFlow:
     @cached_property
     def dfm_stretch(self):
         r"""
-        Calculate the stretching deformation
+        Stretching deformation
         .. math::
             Def = u_x - v_y
         """
@@ -347,7 +348,7 @@ class AtmosFlow:
     @cached_property
     def dfm_shear(self):
         r"""
-        Calculate the shearing deformation
+        Shearing deformation
         .. math::
             Def' = u_y + v_x
         """
@@ -358,7 +359,7 @@ class AtmosFlow:
     @cached_property
     def kvn(self):
         r"""
-        Calculate kinematic vorticity number
+        Kinematic vorticity number
 
         .. math::
             W_k=\frac{||\Omega||}{||S||}=\frac{\sqrt{\zeta^2}}{\sqrt{D_h^2 + Def^2 + Def'^2}}
@@ -376,4 +377,78 @@ class AtmosFlow:
         denominator = (self.div_h**2 + self.dfm_stretch**2 + self.dfm_shear**2)**0.5
         res = numerator/denominator
         res.rename('kinematic_vorticity_number_2d')
+        return res
+
+    @cached_property
+    def density(self):
+        try:
+            # TODO: more flexible choosing
+            #self.cubes.extract_strict('air_pressure')
+            #self.cubes.extract_strict('air_potential_temperature')
+            res = self.pres / (self.theta * (self.pres / self.p0) ** (self.R_d / self.c_p).data * self.R_d)
+            res.rename('air_density')
+            self.main_cubes(res)
+            return res
+
+        #except iris.exceptions.ConstraintMismatchError:
+        except AttributeError:
+            msg = 'The AtmosFlow has to contain cubes of pressure or potential temperature,\
+                   as well as R_d, c_p and p0 constants to calculate air density'
+            raise ValueError(msg)
+
+    @cached_property
+    def specific_volume(self):
+        res = self.density ** (-1)
+        res.rename('air_specific_volume')
+        self.main_cubes(res)
+        return res
+
+    @cached_property
+    def dp_dx(self):
+        r"""
+        Derivative of pressure along the x-axis
+        .. math::
+            p_x = \frac{\partial p}{\partial x}
+        """
+        return cube_deriv(self.pres, self.xcoord)
+
+    @cached_property
+    def dp_dy(self):
+        r"""
+        Derivative of pressure along the y-axis
+        .. math::
+            p_y = \frac{\partial p}{\partial y}
+        """
+        return cube_deriv(self.pres, self.ycoord)
+
+    @cached_property
+    def dsv_dx(self):
+        r"""
+        Derivative of specific volume along the x-axis
+        .. math::
+            \alpha_x = \frac{\partial\alpha}{\partial x}
+        """
+        return cube_deriv(self.specific_volume, self.xcoord)
+
+    @cached_property
+    def dsv_dy(self):
+        r"""
+        Derivative of specific volume along the y-axis
+        .. math::
+            \alpha_y = \frac{\partial\alpha}{\partial y}
+        """
+        return cube_deriv(self.specific_volume, self.ycoord)
+
+    @cached_property
+    def baroclinic_term(self):
+        r"""
+        Baroclinic term of relative vorticity budget
+
+        .. math::
+            \frac{\partial p}{\partial x}\frac{\partial\alpha}{\partial y}
+            - \frac{\partial p}{\partial y}\frac{\partial\alpha}{\partial x}
+        """
+        res =   self.dp_dx * self.dsv_dy \
+              - self.dp_dy * self.dsv_dx
+        res.rename('baroclinic_term_of_atmosphere_relative_vorticity_budget')
         return res
