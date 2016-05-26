@@ -261,8 +261,8 @@ class AtmosFlow:
         res = 0
         for cmpnt in self.wind_cmpnt:
             res += cmpnt**2
-            res = res**0.5
-            res.rename('wind_speed')
+        res = res**0.5
+        res.rename('wind_speed')
         return res
 
     @cached_property
