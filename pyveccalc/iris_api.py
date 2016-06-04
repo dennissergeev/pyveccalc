@@ -171,6 +171,34 @@ class AtmosFlow:
         return msg
 
     @cached_property
+    def wspd(self):
+        r"""
+        Calculate wind speed (magnitude)
+        .. math::
+            \sqrt{u^2 + v^2 + w^2}
+        """
+        res = 0
+        for cmpnt in self.wind_cmpnt:
+            res += cmpnt**2
+        res = res**0.5
+        res.rename('wind_speed')
+        return res
+
+    @cached_property
+    def tke(self):
+        r"""
+        Calculate total kinetic energy
+        .. math::
+            0.5\rho(u^2 + v^2 + w^2)
+        """
+        res = 0
+        for cmpnt in self.wind_cmpnt:
+            res += cmpnt**2
+        res = 0.5*res*self.density
+        res.rename('total_kinetic_energy')
+        return res
+
+    @cached_property
     def du_dx(self):
         r"""
         Derivative of u-wind along the x-axis
@@ -250,20 +278,6 @@ class AtmosFlow:
             w_z = \frac{\partial w}{\partial z}
         """
         return cube_deriv(self.w, self.zcoord)
-
-    @cached_property
-    def wspd(self):
-        r"""
-        Calculate wind speed (magnitude)
-        .. math::
-            \sqrt{u^2 + v^2 + w^2}
-        """
-        res = 0
-        for cmpnt in self.wind_cmpnt:
-            res += cmpnt**2
-        res = res**0.5
-        res.rename('wind_speed')
-        return res
 
     @cached_property
     def rel_vort(self):
