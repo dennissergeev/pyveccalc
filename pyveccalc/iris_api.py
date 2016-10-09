@@ -94,9 +94,9 @@ def prepare_cube_on_model_levels(cube, lonlat2cart_kw={}, prep_zcoord_kw={},
     if isinstance(prep_zcoord_kw, dict):
         res = prepare_cube_zcoord(res, **prep_zcoord_kw)
     # Get rid of unnecessary coordinates that hinder cube.coord() method
-    if rm_surf_alt:
+    if rm_surf_alt and len(res.coords('surface_altitude'))>0:
         res.remove_coord('surface_altitude')
-    if rm_sigma:
+    if rm_sigma and len(res.coords('sigma'))>0:
         res.remove_coord('sigma')
     if rm_aux_factories:
         # aka remove DerivedCoords
