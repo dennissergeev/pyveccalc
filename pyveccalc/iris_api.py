@@ -4,19 +4,23 @@ Iris interface to pyveccalc
 """
 import numpy as np
 from cached_property import cached_property
-import cf_units
 import iris
 from iris.analysis.calculus import differentiate
 
 from . import utils
 
-is_physical = lambda z: z.name() in ('height', 'level_height',
-                                     'atmosphere_hybrid_height_coordinate',
-                                     'pressure')
-notdimless_and_1d = lambda z: not z.units.is_dimensionless() and z.ndim==1
+phys_coord = ('height', 'level_height',
+              'atmosphere_hybrid_height_coordinate',
+              'pressure')
 
-iscube = lambda x: isinstance(x, iris.cube.Cube)
-iscube_and_not_scalar = lambda x: isinstance(x, iris.cube.Cube) and x.shape != ()
+is_physical = lambda z: z.name() in phys_coord  # NOQA
+notdimless_and_1d = lambda z: not z.units.is_dimensionless() and z.ndim==1  # NOQA
+
+iscube = lambda x: isinstance(x, iris.cube.Cube)  # NOQA
+iscube_and_not_scalar = lambda x: (isinstance(x, iris.cube.Cube)  # NOQA
+                                   and x.shape != ())  # NOQA
+
+
 def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
     if return_copy:
         cp_cube = cube.copy()
@@ -33,6 +37,7 @@ def replace_dimcoord(cube, src_cube, axes='xy', return_copy=True):
     if return_copy:
         return cp_cube
 
+
 def prepare_cube_zcoord(cube, rm_z_bounds=True, rm_z_varname=True):
     # Pick physically meaningful coordinate instead of level indices
     res = cube.copy()
@@ -42,18 +47,19 @@ def prepare_cube_zcoord(cube, rm_z_bounds=True, rm_z_varname=True):
         suitable_z = list(filter(is_physical, suitable_z))
         if len(suitable_z) == 0:
             # TODO: what if suitable_z > 1 ?
-            msg = "Warning: the name of '{name}' is not among the preferred: {phys}"
-            print(msg.format(name=z.name(), phys=', '.join(phys_coord)))
+            msg = "Warning: the name of '{name}' is not among: {phys}"
+            print(msg.format(name=suitable_z.name(),
+                             phys=', '.join(phys_coord)))
         zcoord = suitable_z[0]
     else:
-        raise ValueError('No suitable coords among these: {z}'.format(z=z_ax_coords))
+        raise ValueError('No suitable coords among: {z}'.format(z=z_ax_coords))
 
     if rm_z_bounds:
         zcoord.bounds = None
     if rm_z_varname:
         zcoord.var_name = None
 
-    if not zcoord in res.dim_coords:
+    if zcoord not in res.dim_coords:
         for z in z_ax_coords:
             if z in res.dim_coords:
                 zdim = res.coord_dims(z)[0]
@@ -63,26 +69,29 @@ def prepare_cube_zcoord(cube, rm_z_bounds=True, rm_z_varname=True):
         res.add_dim_coord(zcoord, zdim)
     return res
 
+
 def replace_lonlat_dimcoord_with_cart(cube, dx=1, dy=None, dxdy_units='m'):
     res = cube.copy()
     if dy is None:
         dy = dx
     for axis, standard_name, step in zip(('x',         'y'),
                                          ('longitude', 'latitude'),
-                                         ( dx,           dy)):
+                                         (dx,           dy)):
         icoord = res.coord(axis=axis)
         coord_dim = res.coord_dims(icoord)[0]
         res.remove_coord(icoord)
 
         eq_spaced_points = np.array(range(icoord.shape[0]))*step
+        long_name = 'distance_along_{0}_axis'.format(axis)
         new_coord = iris.coords.DimCoord(points=eq_spaced_points,
                                          standard_name=standard_name,
-                                         long_name='distance_along_{0}_axis'.format(axis),
+                                         long_name=long_name,
                                          units=dxdy_units)
 
         res.add_dim_coord(new_coord, coord_dim)
 
     return res
+
 
 def prepare_cube_on_model_levels(cube, lonlat2cart_kw={}, prep_zcoord_kw={},
                                  rm_surf_alt=True,
@@ -94,14 +103,15 @@ def prepare_cube_on_model_levels(cube, lonlat2cart_kw={}, prep_zcoord_kw={},
     if isinstance(prep_zcoord_kw, dict):
         res = prepare_cube_zcoord(res, **prep_zcoord_kw)
     # Get rid of unnecessary coordinates that hinder cube.coord() method
-    if rm_surf_alt and len(res.coords('surface_altitude'))>0:
+    if rm_surf_alt and len(res.coords('surface_altitude')) > 0:
         res.remove_coord('surface_altitude')
-    if rm_sigma and len(res.coords('sigma'))>0:
+    if rm_sigma and len(res.coords('sigma')) > 0:
         res.remove_coord('sigma')
     if rm_aux_factories:
         # aka remove DerivedCoords
         [res.remove_aux_factory(i) for i in res.aux_factories]
     return res
+
 
 def check_coords(cubes):
     """Check the cubes coordinates for consistency"""
@@ -121,31 +131,38 @@ def check_coords(cubes):
                          'resampling.'.format(
                              ', '.join(group.name() for group in bad_coords)))
 
+
 def cube_deriv(cube, coord):
     """
     Wrapper to `iris.analysis.calculus.differentiate` to differentiate a cube
-    and regrid/interpolate the result from mid-points to the points of the input cube
+    and regrid/interpolate the result from mid-points
+    to the points of the input cube
     """
     res = differentiate(cube, coord)
-    if res.coord(axis='x') != cube.coord(axis='x') or res.coord(axis='y') != cube.coord(axis='y'):
+    if (res.coord(axis='x') != cube.coord(axis='x') or
+       res.coord(axis='y') != cube.coord(axis='y')):
         res = res.regridded(cube)
     elif res.coord(axis='z') != cube.coord(axis='z'):
-        cube_z_points = [(cube.coord(axis='z').name(), cube.coord(axis='z').points)]
+        cube_z_points = [(cube.coord(axis='z').name(),
+                          cube.coord(axis='z').points)]
         res = res.interpolate(cube_z_points, iris.analysis.Linear())
     return res
+
 
 class AtmosFlow:
     """Atmospheric Flow in Cartesian coords"""
     def __init__(self, u, v, w, lats=45., **kw_vars):
-        self.u = u #.copy()
-        self.v = v #.copy()
-        self.w = w #.copy()
+        self.u = u  # .copy()
+        self.v = v  # .copy()
+        self.w = w  # .copy()
 
         self.__dict__.update(kw_vars)
 
         self.cubes = iris.cube.CubeList(filter(iscube, self.__dict__.values()))
-        self.main_cubes = iris.cube.CubeList(filter(iscube_and_not_scalar, self.__dict__.values()))
-        self.wind_cmpnt = iris.cube.CubeList(filter(None, [self.u, self.v, self.w]))
+        self.main_cubes = iris.cube.CubeList(filter(iscube_and_not_scalar,
+                                                    self.__dict__.values()))
+        self.wind_cmpnt = iris.cube.CubeList(filter(None,
+                                                    [self.u, self.v, self.w]))
         thecube = self.main_cubes[0]
 
         check_coords(self.main_cubes)
@@ -160,10 +177,12 @@ class AtmosFlow:
 
         # Non-spherical coords?
         self.horiz_cs = thecube.coord_system('CoordSystem')
-        self.spherical_coords = isinstance(self.horiz_cs, (iris.coord_systems.GeogCS,
-                                                           iris.coord_systems.RotatedGeogCS))
+        self.spherical_coords = isinstance(self.horiz_cs,
+                                           (iris.coord_systems.GeogCS,
+                                            iris.coord_systems.RotatedGeogCS))
         # interface for spherical coordinates switch?
-        assert not self.spherical_coords, 'Only non-spherical coordinates are allowed so far...'
+        assert not self.spherical_coords,\
+            'Only non-spherical coordinates are allowed so far...'
 
     def __repr__(self):
         msg = "pyveccalc 'Atmospheric Flow' containing of:\n"
@@ -308,8 +327,8 @@ class AtmosFlow:
         .. math::
             \vec v\cdot \nabla \zeta
         """
-        res = self.u*cube_deriv(self.rel_vort, self.xcoord) + \
-              self.v*cube_deriv(self.rel_vort, self.ycoord)
+        res = (self.u*cube_deriv(self.rel_vort, self.xcoord) +
+               self.v*cube_deriv(self.rel_vort, self.ycoord))
         res.rename('horizontal_advection_of_atmosphere_relative_vorticity')
         return res
 
@@ -376,7 +395,8 @@ class AtmosFlow:
         Kinematic vorticity number
 
         .. math::
-            W_k=\frac{||\Omega||}{||S||}=\frac{\sqrt{\zeta^2}}{\sqrt{D_h^2 + Def^2 + Def'^2}}
+            W_k=\frac{||\Omega||}{||S||}=
+            \frac{\sqrt{\zeta^2}}{\sqrt{D_h^2 + Def^2 + Def'^2}}
         where
         .. math::
             \zeta=v_x - u_y
@@ -388,7 +408,9 @@ class AtmosFlow:
             http://dx.doi.org/10.3402/tellusa.v68.29464
         """
         numerator = self.rel_vort
-        denominator = (self.div_h**2 + self.dfm_stretch**2 + self.dfm_shear**2)**0.5
+        denominator = (self.div_h**2 +
+                       self.dfm_stretch**2 +
+                       self.dfm_shear**2)**0.5
         res = numerator/denominator
         res.rename('kinematic_vorticity_number_2d')
         return res
@@ -404,17 +426,20 @@ class AtmosFlow:
         """
         try:
             # TODO: more flexible choosing
-            #self.cubes.extract_strict('air_pressure')
-            #self.cubes.extract_strict('air_potential_temperature')
-            res = self.pres / (self.theta * (self.pres / self.p0) ** (self.R_d / self.c_p).data * self.R_d)
+            # self.cubes.extract_strict('air_pressure')
+            # self.cubes.extract_strict('air_potential_temperature')
+            kappa = (self.R_d / self.c_p).data
+            t = self.theta * (self.pres / self.p0) ** kappa
+            res = self.pres / (t * self.R_d)
             res.rename('air_density')
             self.main_cubes.append(res)
             return res
 
-        #except iris.exceptions.ConstraintMismatchError:
+        # except iris.exceptions.ConstraintMismatchError:
         except AttributeError:
-            msg = 'The AtmosFlow has to contain cubes of pressure or potential temperature,\
-                   as well as R_d, c_p and p0 constants to calculate air density'
+            msg = 'The AtmosFlow has to contain cubes of pressure\
+                   or potential temperature, as well as R_d, c_p and p0\
+                   constants to calculate air density'
             raise ValueError(msg)
 
     @cached_property
@@ -475,7 +500,7 @@ class AtmosFlow:
             \frac{\partial p}{\partial x}\frac{\partial\alpha}{\partial y}
             - \frac{\partial p}{\partial y}\frac{\partial\alpha}{\partial x}
         """
-        res =   self.dp_dx * self.dsv_dy \
-              - self.dp_dy * self.dsv_dx
+        res = (self.dp_dx * self.dsv_dy
+               - self.dp_dy * self.dsv_dx)
         res.rename('baroclinic_term_of_atmosphere_relative_vorticity_budget')
         return res
