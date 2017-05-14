@@ -80,6 +80,7 @@ def replace_lonlat_dimcoord_with_cart(cube, dx=1, dy=None, dxdy_units='m'):
         icoord = res.coord(axis=axis)
         coord_dim = res.coord_dims(icoord)[0]
         res.remove_coord(icoord)
+        # TODO: demote_dim_coord_to_aux_coord
 
         eq_spaced_points = np.array(range(icoord.shape[0]))*step
         long_name = 'distance_along_{0}_axis'.format(axis)
@@ -111,6 +112,19 @@ def prepare_cube_on_model_levels(cube, lonlat2cart_kw={}, prep_zcoord_kw={},
         # aka remove DerivedCoords
         [res.remove_aux_factory(i) for i in res.aux_factories]
     return res
+
+
+def clean_pressure_coord(cube):
+    try:
+        pcoord = cube.coord('pressure')
+        units2pa = pcoord.units.convert(1, 'Pa')
+        new_pcoord = iris.coords.DimCoord((pcoord.points * units2pa).round(),
+                                          long_name='pressure', units='Pa')
+        dim = cube.coord_dims('pressure')[0]
+        cube.remove_coord('pressure')
+        cube.add_dim_coord(new_pcoord, dim)
+    except iris.exceptions.CoordinateNotFoundError:
+        pass
 
 
 def check_coords(cubes):
@@ -151,7 +165,7 @@ def cube_deriv(cube, coord):
 
 class AtmosFlow:
     """Atmospheric Flow in Cartesian coords"""
-    def __init__(self, u, v, w, lats=45., **kw_vars):
+    def __init__(self, u, v, w, lats=None, **kw_vars):
         self.u = u  # .copy()
         self.v = v  # .copy()
         self.w = w  # .copy()
@@ -171,8 +185,15 @@ class AtmosFlow:
         self.xcoord = thecube.coord(axis='X')
         self.ycoord = thecube.coord(axis='Y')
         self.zcoord = thecube.coord(axis='Z')
+        if self.zcoord.units.is_convertible('Pa'):
+            # Check if the vertical coordinate is pressure
+            self.zmode = 'pcoord'
+            for cube in self.main_cubes:
+                clean_pressure_coord(cube)
 
         # TODO: correct fcor calculation
+        if lats is None:
+            lats = 45  # FIXME
         self.fcor = utils.calc_fcor(lats)
 
         # Non-spherical coords?
@@ -307,6 +328,7 @@ class AtmosFlow:
         """
         res = self.dv_dx - self.du_dy
         res.rename('atmosphere_relative_vorticity')
+        res.convert_units('s-1')
         return res
 
     @cached_property
@@ -318,6 +340,7 @@ class AtmosFlow:
         """
         res = self.du_dx + self.dv_dy
         res.rename('divergence_of_wind')
+        res.convert_units('s-1')
         return res
 
     @cached_property
@@ -330,6 +353,7 @@ class AtmosFlow:
         res = (self.u*cube_deriv(self.rel_vort, self.xcoord) +
                self.v*cube_deriv(self.rel_vort, self.ycoord))
         res.rename('horizontal_advection_of_atmosphere_relative_vorticity')
+        res.convert_units('s-2')
         return res
 
     @cached_property
@@ -341,6 +365,7 @@ class AtmosFlow:
         """
         res = self.w*cube_deriv(self.rel_vort, self.zcoord)
         res.rename('vertical_advection_of_atmosphere_relative_vorticity')
+        res.convert_units('s-2')
         return res
 
     @cached_property
@@ -352,6 +377,7 @@ class AtmosFlow:
         """
         res = self.div_h*(self.rel_vort + self.fcor)
         res.rename('stretching_term_of_atmosphere_relative_vorticity_budget')
+        res.convert_units('s-2')
         return res
 
     @cached_property
@@ -365,6 +391,7 @@ class AtmosFlow:
         """
         res = self.dw_dx * self.dv_dz - self.dw_dy * self.du_dz
         res.rename('tilting_term_of_atmosphere_relative_vorticity_budget')
+        res.convert_units('s-2')
         return res
 
     @cached_property
@@ -376,6 +403,7 @@ class AtmosFlow:
         """
         res = self.du_dx - self.dv_dy
         res.rename('stretching_deformation_2d')
+        res.convert_units('s-1')
         return res
 
     @cached_property
@@ -387,6 +415,7 @@ class AtmosFlow:
         """
         res = self.du_dy + self.dv_dx
         res.rename('shearing_deformation_2d')
+        res.convert_units('s-1')
         return res
 
     @cached_property
@@ -503,4 +532,5 @@ class AtmosFlow:
         res = (self.dp_dx * self.dsv_dy
                - self.dp_dy * self.dsv_dx)
         res.rename('baroclinic_term_of_atmosphere_relative_vorticity_budget')
+        res.convert_units('s-1')
         return res
